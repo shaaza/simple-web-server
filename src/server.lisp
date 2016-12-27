@@ -1,23 +1,23 @@
 ;;;; Simple-Web Server
-;;;; 2 core functions: 
+;;;; 2 core functions:
 
-;;;; Server function - serve (request-handler) 
+;;;; Server function - serve (request-handler)
 
-;;;; serve: 1. Listens to 8080 | 2. Parses HTTP request into Lisp-processable data - path, header and params. | 3. Calls request-handler with the 3 arguments and o/ps to socket. 
+;;;; serve: 1. Listens to 8080 | 2. Parses HTTP request into Lisp-processable data - path, header and params. | 3. Calls request-handler with the 3 arguments and o/ps to socket.
 
 (defun serve (request-handler)
              (let ((socket (socket-server 8080)))
-                  (unwind-protect 
-                                 (loop 
+                  (unwind-protect
+                                 (loop
                                        (with-open-stream (stream (socket-accept socket))
                                                          (let* ((url (parse-url (read-line stream)))
                                                                 (path (car url))
                                                                 (header (get-header stream))
                                                                 (params (append (cdr url) (get-content-params stream header)))
                                                                 (*standard-output* stream))
-                                           
+
                                                                (funcall request-handler path header params))))
-                                  (socket-server-close socket))))                                              
+                                  (socket-server-close socket))))
 
 
 
@@ -37,23 +37,23 @@
 
 (defun get-content-params (stream header)
                           (let ((length  (cdr (assoc 'content-length header))))
-                               (when length 
+                               (when length
                                      (let ((content (make-string (parse-integer length))))
                                           (read-sequence content stream)
                                           (parse-params content)))))
 
-;;; parse-url: 1. Accept first line of header as argument. 2.1. Use space delimiters around url to capture url. 2.2. Use question mark position to check for existence of url params. 2.3. If question-mark-position exists, cons the url to the parsed request parameters. 
+;;; parse-url: 1. Accept first line of header as argument. 2.1. Use space delimiters around url to capture url. 2.2. Use question mark position to check for existence of url params. 2.3. If question-mark-position exists, cons the url to the parsed request parameters.
 
 (defun parse-url (first-line)
                  (let* ((url (subseq first-line (+ 2 (position #\space first-line))
                                     (position #\space first-line :from-end t)))
                        (x (position #\? url)))
-                       
+
                       (if x
                           (cons (subseq url 0 x) (parse-params (subseq url (1+ x))))
                           (cons url '()))))
 
-                 
+
 ;;; General Purpose Functions
 
 ;;; parse-params
@@ -67,7 +67,7 @@
                                 ((equal "" querystring) 'nil)
                                 (t querystring))))
 
-;;  decode-params: Coerce the passed parameter value into a string and pass it to a local recursive function which passes a) % and following to ASCII->CHAR converter function b) + to space c) and leaves anything else as is. 
+;;  decode-params: Coerce the passed parameter value into a string and pass it to a local recursive function which passes a) % and following to ASCII->CHAR converter function b) + to space c) and leaves anything else as is.
 
 (defun decode-params (value)
                      (labels ((f (lst)
@@ -77,9 +77,9 @@
                                                   (f (cdddr lst))))
                                        (#\+ (cons #\space (f (cdr lst))))
                                        (otherwise (cons (car lst) (f (cdr lst))))))))
-                             
+
                              (coerce (f (coerce value 'list)) 'string)))
- 
+
 ;   http-char: Accept 2 characters as arguments, convert the two from hex to ASCII, and convert ASCII into character.
 
 (defun http-char (c1 c2 &optional (default #\Space))
